@@ -8,10 +8,6 @@
 <script type="text/javascript">
 var globglob = Elm.fullscreen(Elm.GlobGlob);
 
-globglob.ports.setStorage.subscribe(function (state) {
-        localStorage.setItem('elm-globglob', JSON.stringify(state));
-});
-
 globglob.ports.setLocation.subscribe(function (location) {
         document.location.href = location;
 });

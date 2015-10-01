@@ -42,6 +42,7 @@ type alias Model = {
 type Action =
            GameTime Float
          | Space Bool
+         | BestScoreUpdated Int
          | Reset
          | NoOp
 
@@ -76,6 +77,8 @@ update action model =
                                             { model | cur <- model.cur + 1 }
                                     Done ->
                                             model
+                    BestScoreUpdated newScore ->
+                        { model | bestScore <- newScore }
                     Reset ->
                             init
                     _ ->
@@ -93,6 +96,7 @@ input =
                   (Signal.map Space Keyboard.space)
                 , (Signal.map GameTime (every second))
                 , actions.signal
+                , (Signal.map BestScoreUpdated bestScore.signal)
                 ]
 
 model : Signal Model
