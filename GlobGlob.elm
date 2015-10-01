@@ -19,10 +19,10 @@ import Window
 import Http
 import Task exposing (andThen, Task)
 
--- http://jenniferdewalt.com/glob_glob/globs/1
 
 timeToPlay : Float
 timeToPlay = 10
+
 
 type alias Radius = Int
 
@@ -32,19 +32,27 @@ type GameStage =
         | Playing
         | Done
 
+
 type alias Model = {
           bestScore : Radius
         , cur : Radius
         , left : Float
         , stage : GameStage
+        -- Effect inducing variables, should be refactored to use Effects module, which
+        -- clearly separates the model from the state used to trigger side effects such as GET HTTP requests.
+        , getBestScore : Bool
 }
+
 
 type Action =
            GameTime Float
          | Space Bool
-         | BestScoreUpdated Int
          | Reset
          | NoOp
+         -- These three are a kludge since we want to do a "trigger once" GET, and we are using a model state variable for that.
+         | BestScoreUpdated (Maybe Radius)
+         | BestScoreFetch
+         | BestScoreStopFetching
 
 
 actions : Signal.Mailbox Action
@@ -76,18 +84,28 @@ update action model =
                                     Playing ->
                                             { model | cur <- model.cur + 1 }
                                     Done ->
-                                            model
-                    BestScoreUpdated newScore ->
-                        { model | bestScore <- newScore }
+                                            { model | getBestScore <- True }
+                    BestScoreUpdated newScoreM ->
+                      case newScoreM of
+                        Just newScore ->
+                          { model | bestScore <- newScore }
+                        _ ->
+                          model
                     Reset ->
-                            init
+                            { init | bestScore <- model.bestScore }
+                    BestScoreStopFetching ->
+                      { model | getBestScore <- False }
                     _ ->
-                            model
+                      model
 
 
 init : Model
 init =
-        { bestScore = 0, left = timeToPlay, cur = 0, stage = Initial }
+        { bestScore = 0
+        , left = timeToPlay
+        , cur = 0
+        , stage = Initial
+        , getBestScore = True}
 
 
 input : Signal Action
@@ -96,7 +114,7 @@ input =
                   (Signal.map Space Keyboard.space)
                 , (Signal.map GameTime (every second))
                 , actions.signal
-                , (Signal.map BestScoreUpdated bestScore.signal)
+                , (Signal.map BestScoreUpdated serverBestScore.signal)
                 ]
 
 model : Signal Model
@@ -172,23 +190,49 @@ port setLocation =
         setLocationMailbox.signal
 
 
-bestScore : Mailbox Radius
-bestScore =
-  mailbox 0
+serverBestScore : Mailbox (Maybe Radius)
+serverBestScore =
+  mailbox Nothing
 
 
-port getBestScore : Task Http.Error ()
-port getBestScore =
-  Http.getString "/best" `andThen` (Task.succeed << parseBestResult) `andThen` Signal.send bestScore.address
+port serverBestScoreGet : Signal (Task Http.Error ())
+port serverBestScoreGet =
+  let
+    getTask shouldI =
+      case shouldI of
+        True ->
+          Signal.send actions.address BestScoreStopFetching `andThen` (\_ -> Http.getString "/best") `andThen` (decodeBestResult >> Task.succeed)  `andThen` Signal.send serverBestScore.address
+        False ->
+          Task.succeed ()
+  in
+    Signal.map (.getBestScore >> getTask) model
 
 
-parseBestResult : String -> Int
-parseBestResult s =
-  case String.toInt s of
-    Ok best ->
-      best
+boolToMaybe : Bool -> Maybe ()
+boolToMaybe b =
+  case b of
+    True ->
+      Just ()
+    False ->
+      Nothing
+
+
+-- TODO: use Json.Decode (no internet access)
+decodeBestResult : String -> Maybe Radius
+decodeBestResult s =
+  case String.split ":" s of
+    [a, b] ->
+      case String.split "}" b of
+        [a, _] ->
+          case String.toInt (String.trim a) of
+            Ok best ->
+              Just best
+            _ ->
+              Nothing
+        _ ->
+          Nothing
     _ ->
-      0
+      Nothing
 
 
 modelCur : Signal Radius
@@ -198,7 +242,10 @@ modelCur =
 
 port setBestScore : Signal (Task Http.RawError Http.Response)
 port setBestScore =
-  Signal.map postBestScore (Signal.dropRepeats (Signal.map2 Basics.max bestScore.signal modelCur))
+  let
+    currentBest = Signal.filterMap identity 0 serverBestScore.signal
+  in
+    Signal.map postBestScore (Signal.dropRepeats (Signal.map2 Basics.max currentBest modelCur))
 
 
 postBestScore : Radius -> Task Http.RawError Http.Response
