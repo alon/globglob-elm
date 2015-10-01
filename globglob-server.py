@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request
+from flask import Flask, request, render_template
 
 
 app = Flask(__name__)
@@ -31,7 +31,7 @@ def best():
 
 @app.route('/')
 def home():
-    return "this is home"
+    return render_template('index.html')
 
 
 if __name__ == '__main__':

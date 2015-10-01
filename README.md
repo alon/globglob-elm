@@ -18,8 +18,12 @@ Subsequent builds will proceed without any more network access.
 
 Running for testing/development
 ===============================
+```
 make run
+```
 
-It starts an HTTP server serving files from the local directory on port 8000 by default, so open:
+Will start the flask server at
 
-http://localhost:8000/
+```
+http://localhost:5000/
+```
