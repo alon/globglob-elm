@@ -10,18 +10,16 @@ Install elm: (installing globally here, you can also install it locally and fix 
 sudo npm -g elm
 
 Build:
-./make.sh
+make
 
 The initial build will install all the required packages, you need to answer yes to the question when asked if you want to download them.
 
 Subsequent builds will proceed without any more network access.
 
-Running
-=======
-Start a server and open a browser, I use python 2's SimpleHTTPServer or 3's http.server, the file locations may vary, on Fedora they are:
-python2 /usr/lib64/python2.7/SimpleHTTPServer.py
-python3 /usr/lib64/python3.4/http/server.py
+Running for testing/development
+===============================
+make run
 
 It starts an HTTP server serving files from the local directory on port 8000 by default, so open:
 
-http://localhost:8000/globglob.html
+http://localhost:8000/
