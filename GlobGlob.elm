@@ -50,7 +50,7 @@ type Action =
          | Reset
          | NoOp
          -- These three are a kludge since we want to do a "trigger once" GET, and we are using a model state variable for that.
-         | BestScoreUpdated (Maybe Radius)
+         | BestScoreUpdated Radius
          | BestScoreFetch
          | BestScoreStopFetching
 
@@ -85,14 +85,10 @@ update action model =
                                             { model | cur <- model.cur + 1 }
                                     Done ->
                                             { model | getBestScore <- True }
-                    BestScoreUpdated newScoreM ->
-                      case newScoreM of
-                        Just newScore ->
-                          { model | bestScore <- newScore }
-                        _ ->
-                          model
+                    BestScoreUpdated newScore ->
+                      { model | bestScore <- newScore }
                     Reset ->
-                            { init | bestScore <- model.bestScore }
+                      { init | bestScore <- model.bestScore }
                     BestScoreStopFetching ->
                       { model | getBestScore <- False }
                     _ ->
@@ -190,18 +186,24 @@ port setLocation =
         setLocationMailbox.signal
 
 
-serverBestScore : Mailbox (Maybe Radius)
+serverBestScore : Mailbox Radius
 serverBestScore =
-  mailbox Nothing
+  mailbox 0
 
 
 port serverBestScoreGet : Signal (Task Http.Error ())
 port serverBestScoreGet =
   let
+    sendJusts radiusM =
+      case radiusM of
+        Just r ->
+          Signal.send serverBestScore.address r
+        Nothing ->
+          Task.succeed ()
     getTask shouldI =
       case shouldI of
         True ->
-          Signal.send actions.address BestScoreStopFetching `andThen` (\_ -> Http.getString "/best") `andThen` (decodeBestResult >> Task.succeed)  `andThen` Signal.send serverBestScore.address
+          Signal.send actions.address BestScoreStopFetching `andThen` (\_ -> Http.getString "/best") `andThen` (decodeBestResult >> Task.succeed)  `andThen` sendJusts
         False ->
           Task.succeed ()
   in
@@ -242,10 +244,7 @@ modelCur =
 
 port setBestScore : Signal (Task Http.RawError Http.Response)
 port setBestScore =
-  let
-    currentBest = Signal.filterMap identity 0 serverBestScore.signal
-  in
-    Signal.map postBestScore (Signal.dropRepeats (Signal.map2 Basics.max currentBest modelCur))
+  Signal.map postBestScore (Signal.dropRepeats (Signal.map2 Basics.max serverBestScore.signal modelCur))
 
 
 postBestScore : Radius -> Task Http.RawError Http.Response
