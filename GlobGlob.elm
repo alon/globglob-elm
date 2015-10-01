@@ -210,15 +210,6 @@ port serverBestScoreGet =
     Signal.map (.getBestScore >> getTask) model
 
 
-boolToMaybe : Bool -> Maybe ()
-boolToMaybe b =
-  case b of
-    True ->
-      Just ()
-    False ->
-      Nothing
-
-
 -- TODO: use Json.Decode (no internet access)
 decodeBestResult : String -> Maybe Radius
 decodeBestResult s =
