@@ -6,9 +6,7 @@
 </head>
 <body style="border: 0; margin: 0">
 <script type="text/javascript">
-var storedState = localStorage.getItem('elm-globglob');
-var startingState = storedState ? JSON.parse(storedState) : null;
-var globglob = Elm.fullscreen(Elm.GlobGlob, {getStorage: startingState});
+var globglob = Elm.fullscreen(Elm.GlobGlob);
 
 globglob.ports.setStorage.subscribe(function (state) {
         localStorage.setItem('elm-globglob', JSON.stringify(state));

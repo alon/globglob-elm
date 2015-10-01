@@ -6,7 +6,7 @@ Trying to remake this: http://jenniferdewalt.com/glob_glob/globs/1
 
 module GlobGlob where
 
-import Signal exposing (Address)
+import Signal exposing (Address, Mailbox, mailbox)
 import Keyboard
 import Html exposing (Html, div)
 import Html.Attributes exposing (attribute)
@@ -16,6 +16,8 @@ import Svg.Events exposing (onClick)
 import Time exposing (every, second)
 import String
 import Window
+import Http
+import Task exposing (andThen, Task)
 
 -- http://jenniferdewalt.com/glob_glob/globs/1
 
@@ -31,7 +33,7 @@ type GameStage =
         | Done
 
 type alias Model = {
-          last : Radius
+          bestScore : Radius
         , cur : Radius
         , left : Float
         , stage : GameStage
@@ -80,13 +82,9 @@ update action model =
                             model
 
 
-last : Radius
-last =
-        Maybe.withDefault 0 getStorage
-
 init : Model
 init =
-        { last = last, left = timeToPlay, cur = 0, stage = Initial }
+        { bestScore = 0, left = timeToPlay, cur = 0, stage = Initial }
 
 
 input : Signal Action
@@ -107,7 +105,7 @@ endscreen model =
         g []
         [
                   text' [x "50", y "25", textAnchor "middle", fontSize "5"] [text (String.join "" ["You grew your glob to ", toString model.cur, " awesome units!"])]
-                , text' [x "50", y "50", textAnchor "middle", fontSize "5"] [text (if model.cur > model.last then
+                , text' [x "50", y "50", textAnchor "middle", fontSize "5"] [text (if model.cur > model.bestScore then
                    "New record!"
                    else
                    "Too bad you couldn't beat the last glob grower, though")]
@@ -153,7 +151,7 @@ view (swidth, sheight) model =
                                     [ text <| "Remake in Elm of Jeniffer Dewalte's Glob Glob"]
                             ]
                     , circle [cx "20", cy "50", circleFill curColor, r (rhelper model.cur) ] []
-                    , circle [cx "80", cy "50", circleFill lastColor, r (rhelper model.last) ] []
+                    , circle [cx "80", cy "50", circleFill lastColor, r (rhelper model.bestScore) ] []
                     , case model.stage of
                             Initial -> initial
                             Playing -> secondsText
@@ -169,15 +167,33 @@ port setLocation : Signal String
 port setLocation =
         setLocationMailbox.signal
 
-port getStorage : Maybe Radius
+
+bestScore : Mailbox Radius
+bestScore =
+  mailbox 0
+
+
+port getBestScore : Task Http.Error ()
+port getBestScore =
+  Http.getString "/best" `andThen` (Task.succeed << parseBestResult) `andThen` Signal.send bestScore.address
+
+
+parseBestResult : String -> Int
+parseBestResult s =
+  case String.toInt s of
+    Ok best ->
+      best
+    _ ->
+      0
+
 
 modelCur : Signal Radius
 modelCur =
         Signal.map (\model -> model.cur) model
 
-port setStorage : Signal Radius
-port setStorage =
-        Signal.dropRepeats (Signal.foldp Basics.max last modelCur)
+port setBestScore : Signal Radius
+port setBestScore =
+        Signal.dropRepeats (Signal.map2 Basics.max bestScore.signal modelCur) -- `andThen` Http.post
 
 
 main : Signal Html
