@@ -193,11 +193,22 @@ parseBestResult s =
 
 modelCur : Signal Radius
 modelCur =
-        Signal.map (\model -> model.cur) model
+  Signal.map (\model -> model.cur) model
 
-port setBestScore : Signal Radius
+
+port setBestScore : Signal (Task Http.RawError Http.Response)
 port setBestScore =
-        Signal.dropRepeats (Signal.map2 Basics.max bestScore.signal modelCur) -- `andThen` Http.post
+  Signal.map postBestScore (Signal.dropRepeats (Signal.map2 Basics.max bestScore.signal modelCur))
+
+
+postBestScore : Radius -> Task Http.RawError Http.Response
+postBestScore r =
+  Http.send Http.defaultSettings
+    { verb = "POST"
+    , headers = [("Content-Type", "application/x-www-form-urlencoded")]
+    , url = "/best"
+    , body = Http.string ("score=" ++ (toString r))}
+  `andThen` Task.succeed
 
 
 main : Signal Html
