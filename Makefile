@@ -1,7 +1,7 @@
 all: globglob.js
 
 globglob.js: GlobGlob.elm
-	elm-make --warn --output globglob.js GlobGlob.elm
+	elm-make --warn --output static/globglob.js GlobGlob.elm
 
 .PHONY: run
 
