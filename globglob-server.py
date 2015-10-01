@@ -1,5 +1,6 @@
 import os
 from flask import Flask, request, render_template
+import json
 
 
 app = Flask(__name__)
@@ -22,11 +23,13 @@ def store_best(score):
 
 @app.route('/best', methods=['GET', 'POST'])
 def best():
+    current_best = retrieve_best()
     if request.method == 'POST':
-        store_best(request.form['score'])
-        return "ok"
-    else:
-        return str(retrieve_best())
+        score = int(request.form['score'])
+        if score > current_best:
+            store_best(score)
+            current_best = score
+    return json.dumps(dict(result=current_best))
 
 
 @app.route('/')
