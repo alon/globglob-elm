@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="UTF-8"></meta>
+<script type="text/javascript" src="globglob.js"></script>
+</head>
+<body style="border: 0; margin: 0">
+<script type="text/javascript">
+var storedState = localStorage.getItem('elm-globglob');
+var startingState = storedState ? JSON.parse(storedState) : null;
+var globglob = Elm.fullscreen(Elm.GlobGlob, {getStorage: startingState});
+
+globglob.ports.setStorage.subscribe(function (state) {
+        localStorage.setItem('elm-globglob', JSON.stringify(state));
+});
+
+globglob.ports.setLocation.subscribe(function (location) {
+        document.location.href = location;
+});
+</script>
+</body>
+</html>
